@@ -1,6 +1,6 @@
 package dev.conditions.paper;
 
-import dev.conditions.store.DataBag;
+import dev.databag.DataBag;
 import java.util.Optional;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;

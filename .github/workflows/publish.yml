@@ -22,11 +22,24 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: mintychochip/databag
+          ref: e27fedd42489d66242460770e04745de3812afff
+          path: databag
+          fetch-depth: 1
+      - name: Link databag local Maven repository
+        run: ln -s "$GITHUB_WORKSPACE/databag" "$GITHUB_WORKSPACE/../databag"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Publish databag local Maven artifacts
+        working-directory: databag
+        run: |
+          chmod +x gradlew
+          ./gradlew publishAllPublicationsToLocalBuildRepoRepository --no-daemon
       - name: Generate CalVer YY.M.D.RUN
         id: version
         shell: bash

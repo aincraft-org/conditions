@@ -166,15 +166,12 @@ Release: `./gradlew publishAllPublicationsToLocalBuildRepoRepository -PreleaseVe
 
 ## Primitive bag (PDC-shaped, Kryo `byte[]`)
 
-Namespaced keys, PDC-like primitives, no Bukkit. The whole bag is a Kryo byte
-array that Paper writes as `PersistentDataType.BYTE_ARRAY`. Condition graphs
-stay vanilla JSON bytes in a `byte[]` slot — they are not Kryo condition classes.
-
-Scalars: boolean, byte, short, int, long, float, double, string, UUID.  
-Arrays: byte[], int[], long[].
+Item embeds use [`mintychochip/databag`](https://github.com/mintychochip/databag)
+(`dev.databag:databag`). Condition graphs stay vanilla JSON bytes in a `byte[]`
+slot — they are not Kryo condition classes.
 
 ```java
-import dev.conditions.store.DataBag;
+import dev.databag.DataBag;
 import net.kyori.adventure.key.Key;
 
 DataBag bag = DataBag.create()
