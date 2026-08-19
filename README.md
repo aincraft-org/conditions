@@ -164,6 +164,27 @@ Boosts persist a rule as **priority + those JSON bytes + boost**:
 CalVer `YY.M.D.REVISION` (example `26.8.19.1`). Local: `0.0.0-SNAPSHOT`.
 Release: `./gradlew publishAllPublicationsToLocalBuildRepoRepository -PreleaseVersion=26.8.19.1`.
 
+## Primitive bag (PDC-shaped, Kryo `byte[]`)
+
+Namespaced keys, PDC-like primitives, no Bukkit. The whole bag is a Kryo byte
+array that Paper writes as `PersistentDataType.BYTE_ARRAY`. Condition graphs
+stay vanilla JSON bytes in a `byte[]` slot — they are not Kryo condition classes.
+
+```java
+import dev.conditions.store.DataBag;
+import net.kyori.adventure.key.Key;
+
+DataBag bag = DataBag.create()
+    .setBoolean(Key.key("modularjobs", "enabled"), true)
+    .setInt(Key.key("modularjobs", "priority"), 100)
+    .setBytes(Key.key("modularjobs", "condition"), json.write(condition));
+
+byte[] pdcPayload = bag.toBytes();
+DataBag back = DataBag.fromBytes(pdcPayload);
+```
+
+On an item: `PersistentBags.write(stack, namespacedKey, bag)`.
+
 ## Build
 
 ```bash
