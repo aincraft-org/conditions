@@ -10,7 +10,11 @@ public record PlayerResourceCondition(
 
   @Override
   public boolean test(ConditionContext context) {
-    if (!context.present()) {
+    boolean allowed = switch (type) {
+      case HEALTH -> context.livingPresent();
+      case HUNGER, EXPERIENCE -> context.present();
+    };
+    if (!allowed) {
       return false;
     }
     Double actual = switch (type) {

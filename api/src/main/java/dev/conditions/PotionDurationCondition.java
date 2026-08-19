@@ -11,7 +11,7 @@ public record PotionDurationCondition(
 
   @Override
   public boolean test(ConditionContext context) {
-    if (!context.present()) {
+    if (!context.livingPresent()) {
       return false;
     }
     for (var entry : context.effects().entrySet()) {

@@ -9,7 +9,7 @@ public record PotionPresentCondition(Key effectKey) implements Condition {
 
   @Override
   public boolean test(ConditionContext context) {
-    if (!context.present()) {
+    if (!context.livingPresent()) {
       return false;
     }
     for (Key key : context.effects().keySet()) {

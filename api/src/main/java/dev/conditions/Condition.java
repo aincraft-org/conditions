@@ -1,8 +1,9 @@
 package dev.conditions;
 
 /**
- * Pure player predicate. Implementations must not look up Bukkit state; they
- * read only {@link ConditionContext}.
+ * Pure predicate over a {@link ConditionContext}. Implementations must not look
+ * up Bukkit state. The snapshot may describe a player, a living entity, a
+ * block, or several of those at once.
  */
 @FunctionalInterface
 public interface Condition {

@@ -11,13 +11,22 @@ import java.util.Locale;
 import dev.conditions.AllOfCondition;
 import dev.conditions.AlwaysCondition;
 import dev.conditions.AnyOfCondition;
+import dev.conditions.BabyCondition;
 import dev.conditions.BiomeCondition;
+import dev.conditions.BlockIdCondition;
+import dev.conditions.BlockPropertyCondition;
 import dev.conditions.Condition;
 import dev.conditions.ConditionSerializer;
 import dev.conditions.Conditions;
+import dev.conditions.EntityTypeCondition;
 import dev.conditions.FluidCondition;
+import dev.conditions.FlyingCondition;
+import dev.conditions.GameModeCondition;
+import dev.conditions.GlidingCondition;
 import dev.conditions.InvertedCondition;
 import dev.conditions.JobCondition;
+import dev.conditions.OnFireCondition;
+import dev.conditions.OnGroundCondition;
 import dev.conditions.PlayerResourceCondition;
 import dev.conditions.PlayerResourceType;
 import dev.conditions.PotionAmplifierCondition;
@@ -26,6 +35,7 @@ import dev.conditions.PotionPresentCondition;
 import dev.conditions.RelationalOperator;
 import dev.conditions.SneakingCondition;
 import dev.conditions.SprintingCondition;
+import dev.conditions.SwimmingCondition;
 import dev.conditions.WeatherCondition;
 import dev.conditions.WeatherState;
 import dev.conditions.WorldCondition;
@@ -69,6 +79,16 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case InvertedCondition inverted -> invertedJson(writeElement(inverted.term()));
       case SneakingCondition sneak -> entityFlags(flagObject("is_sneaking", sneak.expected()));
       case SprintingCondition sprint -> entityFlags(flagObject("is_sprinting", sprint.expected()));
+      case OnFireCondition fire -> entityFlags(flagObject("is_on_fire", fire.expected()));
+      case OnGroundCondition ground -> entityFlags(flagObject("is_on_ground", ground.expected()));
+      case SwimmingCondition swim -> entityFlags(flagObject("is_swimming", swim.expected()));
+      case BabyCondition baby -> entityFlags(flagObject("is_baby", baby.expected()));
+      case GlidingCondition glide -> entityFlags(flagObject("is_gliding", glide.expected()));
+      case FlyingCondition fly -> entityFlags(flagObject("is_flying", fly.expected()));
+      case EntityTypeCondition type -> entityTypeJson(type.entityType().asString());
+      case GameModeCondition mode -> gameModeJson(mode.gameMode());
+      case BlockIdCondition block -> blockStateJson(block.blockId().asString(), null, null);
+      case BlockPropertyCondition prop -> blockStateJson(null, prop.name(), prop.value());
       case BiomeCondition biome -> entityLocationBiome(biome.biomeKey().asString());
       case WorldCondition world -> modular("modularjobs:world", obj -> obj.addProperty("world", world.worldName()));
       case WeatherCondition weather -> weatherJson(weather.state());
@@ -91,6 +111,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case "any_of", "or" -> readAnyOf(json);
       case "inverted", "not" -> readInverted(json);
       case "entity_properties" -> readEntityProperties(json);
+      case "block_state_property" -> readBlockStateProperty(json);
       case "weather_check", "weather" -> readWeather(json);
       case "location_check" -> readLocationCheck(json);
       case "world" -> Conditions.world(requiredString(json, json.has("world") ? "world" : "value"));
@@ -138,13 +159,24 @@ public final class GsonConditionSerializer implements ConditionSerializer {
         ? json.getAsJsonObject("predicate")
         : json;
     List<Condition> parts = new ArrayList<>();
+    if (predicate.has("type") && predicate.get("type").isJsonPrimitive()) {
+      parts.add(Conditions.entityType(Key.key(predicate.get("type").getAsString())));
+    }
     if (predicate.has("flags") && predicate.get("flags").isJsonObject()) {
       JsonObject flags = predicate.getAsJsonObject("flags");
-      if (flags.has("is_sneaking")) {
-        parts.add(Conditions.sneaking(flags.get("is_sneaking").getAsBoolean()));
-      }
-      if (flags.has("is_sprinting")) {
-        parts.add(Conditions.sprinting(flags.get("is_sprinting").getAsBoolean()));
+      addFlag(parts, flags, "is_sneaking", Conditions::sneaking);
+      addFlag(parts, flags, "is_sprinting", Conditions::sprinting);
+      addFlag(parts, flags, "is_on_fire", Conditions::onFire);
+      addFlag(parts, flags, "is_on_ground", Conditions::onGround);
+      addFlag(parts, flags, "is_swimming", Conditions::swimming);
+      addFlag(parts, flags, "is_baby", Conditions::baby);
+      addFlag(parts, flags, "is_gliding", Conditions::gliding);
+      addFlag(parts, flags, "is_flying", Conditions::flying);
+    }
+    if (predicate.has("type_specific") && predicate.get("type_specific").isJsonObject()) {
+      JsonObject specific = predicate.getAsJsonObject("type_specific");
+      if (specific.has("gamemode")) {
+        parts.add(Conditions.gameMode(firstString(specific.get("gamemode"))));
       }
     }
     if (predicate.has("location") && predicate.get("location").isJsonObject()) {
@@ -238,7 +270,50 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     if (predicate.has("biomes")) {
       return Conditions.biome(Key.key(firstString(predicate.get("biomes"))));
     }
-    throw new IllegalArgumentException("location_check requires fluid or biomes");
+    if (predicate.has("block") && predicate.get("block").isJsonObject()) {
+      return readLocationBlock(predicate.getAsJsonObject("block"));
+    }
+    throw new IllegalArgumentException("location_check requires fluid, biomes, or block");
+  }
+
+  private Condition readLocationBlock(JsonObject block) {
+    List<Condition> parts = new ArrayList<>();
+    if (block.has("blocks")) {
+      parts.add(Conditions.blockId(Key.key(firstString(block.get("blocks")))));
+    } else if (block.has("block")) {
+      parts.add(Conditions.blockId(Key.key(block.get("block").getAsString())));
+    }
+    if (block.has("state") && block.get("state").isJsonObject()) {
+      for (var entry : block.getAsJsonObject("state").entrySet()) {
+        parts.add(Conditions.blockProperty(entry.getKey(), firstString(entry.getValue())));
+      }
+    }
+    if (parts.isEmpty()) {
+      throw new IllegalArgumentException("location_check block requires blocks or state");
+    }
+    if (parts.size() == 1) {
+      return parts.getFirst();
+    }
+    return Conditions.allOf(parts.toArray(Condition[]::new));
+  }
+
+  private Condition readBlockStateProperty(JsonObject json) {
+    List<Condition> parts = new ArrayList<>();
+    if (json.has("block")) {
+      parts.add(Conditions.blockId(Key.key(json.get("block").getAsString())));
+    }
+    if (json.has("properties") && json.get("properties").isJsonObject()) {
+      for (var entry : json.getAsJsonObject("properties").entrySet()) {
+        parts.add(Conditions.blockProperty(entry.getKey(), firstString(entry.getValue())));
+      }
+    }
+    if (parts.isEmpty()) {
+      throw new IllegalArgumentException("block_state_property requires block or properties");
+    }
+    if (parts.size() == 1) {
+      return parts.getFirst();
+    }
+    return Conditions.allOf(parts.toArray(Condition[]::new));
   }
 
   private Condition readPlayerResource(JsonObject json) {
@@ -293,6 +368,56 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       terms.add(readObject(el.getAsJsonObject()));
     }
     return terms;
+  }
+
+  private static void addFlag(
+      List<Condition> parts,
+      JsonObject flags,
+      String name,
+      java.util.function.Function<Boolean, Condition> factory) {
+    if (flags.has(name)) {
+      parts.add(factory.apply(flags.get(name).getAsBoolean()));
+    }
+  }
+
+  private static JsonObject entityTypeJson(String type) {
+    JsonObject predicate = new JsonObject();
+    predicate.addProperty("type", type);
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:entity_properties");
+    root.addProperty("entity", "this");
+    root.add("predicate", predicate);
+    return root;
+  }
+
+  private static JsonObject gameModeJson(String gameMode) {
+    JsonObject specific = new JsonObject();
+    specific.addProperty("type", "player");
+    com.google.gson.JsonArray modes = new com.google.gson.JsonArray();
+    modes.add(gameMode);
+    specific.add("gamemode", modes);
+    JsonObject predicate = new JsonObject();
+    predicate.add("type_specific", specific);
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:entity_properties");
+    root.addProperty("entity", "this");
+    root.add("predicate", predicate);
+    return root;
+  }
+
+  private static JsonObject blockStateJson(
+      String blockId, String propertyName, String propertyValue) {
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:block_state_property");
+    if (blockId != null) {
+      root.addProperty("block", blockId);
+    }
+    if (propertyName != null) {
+      JsonObject properties = new JsonObject();
+      properties.addProperty(propertyName, propertyValue);
+      root.add("properties", properties);
+    }
+    return root;
   }
 
   private static JsonObject entityFlags(JsonObject flags) {

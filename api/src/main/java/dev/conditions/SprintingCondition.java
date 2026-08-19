@@ -7,7 +7,7 @@ public record SprintingCondition(boolean expected) implements Condition {
 
   @Override
   public boolean test(ConditionContext context) {
-    if (!context.present()) {
+    if (!context.livingPresent()) {
       return false;
     }
     return context.sprinting() == expected;

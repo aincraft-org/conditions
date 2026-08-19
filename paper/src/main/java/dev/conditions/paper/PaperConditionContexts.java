@@ -5,16 +5,20 @@ import dev.conditions.PotionEffectSnapshot;
 import dev.conditions.WeatherState;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import net.kyori.adventure.key.Key;
 import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Ageable;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Builds a {@link ConditionContext} from a live Paper player.
+ * Builds a {@link ConditionContext} from live Paper objects.
  */
 public final class PaperConditionContexts {
 
@@ -33,33 +37,89 @@ public final class PaperConditionContexts {
     if (player == null || !player.isOnline()) {
       return ConditionContext.absent();
     }
-    World world = player.getWorld();
-    WeatherState weather = world.isThundering()
-        ? WeatherState.THUNDERING
-        : world.hasStorm() ? WeatherState.RAINING : WeatherState.CLEAR;
-    Key fluid = player.isInWater()
+    return livingBuilder(player)
+        .present(true)
+        .entityType(Key.key("minecraft:player"))
+        .flying(player.isFlying())
+        .gameMode(player.getGameMode().name().toLowerCase(Locale.ROOT))
+        .hunger((double) player.getFoodLevel())
+        .experience((double) player.getExp())
+        .jobKeys(jobKeys == null ? Set.of() : jobKeys)
+        .build();
+  }
+
+  /**
+   * Snapshot of a living entity that is not required to be a player.
+   */
+  public static ConditionContext fromLiving(@Nullable LivingEntity entity) {
+    if (entity == null || entity.isDead()) {
+      return ConditionContext.absent();
+    }
+    if (entity instanceof Player player) {
+      return from(player);
+    }
+    return livingBuilder(entity)
+        .present(false)
+        .flying(false)
+        .gameMode(null)
+        .build();
+  }
+
+  /**
+   * Snapshot of a block (id + block-state properties) and its location weather.
+   */
+  public static ConditionContext fromBlock(@Nullable Block block) {
+    if (block == null) {
+      return ConditionContext.absent();
+    }
+    World world = block.getWorld();
+    return ConditionContext.builder()
+        .present(false)
+        .livingPresent(false)
+        .blockId(block.getType().getKey())
+        .blockProperties(BlockDataStrings.properties(block.getBlockData().getAsString()))
+        .worldName(world.getName())
+        .worldKey(world.getKey())
+        .biome(world.getBiome(block.getLocation()).getKey())
+        .weather(weatherOf(world))
+        .build();
+  }
+
+  private static ConditionContext.Builder livingBuilder(LivingEntity entity) {
+    World world = entity.getWorld();
+    Key fluid = entity.isInWater()
         ? Key.key("minecraft:water")
-        : player.isInLava() ? Key.key("minecraft:lava") : null;
+        : entity.isInLava() ? Key.key("minecraft:lava") : null;
     Map<Key, PotionEffectSnapshot> effects = new HashMap<>();
-    for (PotionEffect effect : player.getActivePotionEffects()) {
+    for (PotionEffect effect : entity.getActivePotionEffects()) {
       effects.put(
           effect.getType().getKey(),
           new PotionEffectSnapshot(effect.getAmplifier(), effect.getDuration()));
     }
+    boolean baby = entity instanceof Ageable ageable && !ageable.isAdult();
     return ConditionContext.builder()
-        .present(true)
-        .sneaking(player.isSneaking())
-        .sprinting(player.isSprinting())
-        .biome(world.getBiome(player.getLocation()).getKey())
+        .livingPresent(true)
+        .entityType(entity.getType().getKey())
+        .sneaking(entity.isSneaking())
+        .sprinting(entity instanceof Player player && player.isSprinting())
+        .onFire(entity.getFireTicks() > 0)
+        .onGround(entity.isOnGround())
+        .swimming(entity.isSwimming())
+        .baby(baby)
+        .gliding(entity.isGliding())
+        .biome(world.getBiome(entity.getLocation()).getKey())
         .worldName(world.getName())
         .worldKey(world.getKey())
-        .weather(weather)
+        .weather(weatherOf(world))
         .fluid(fluid)
-        .health(player.getHealth())
-        .hunger((double) player.getFoodLevel())
-        .experience((double) player.getExp())
-        .effects(effects)
-        .jobKeys(jobKeys == null ? Set.of() : jobKeys)
-        .build();
+        .health(entity.getHealth())
+        .effects(effects);
   }
+
+  private static WeatherState weatherOf(World world) {
+    return world.isThundering()
+        ? WeatherState.THUNDERING
+        : world.hasStorm() ? WeatherState.RAINING : WeatherState.CLEAR;
+  }
+
 }

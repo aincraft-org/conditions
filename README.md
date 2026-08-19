@@ -27,6 +27,40 @@ boolean matches = netherSneak.test(
         .build());
 ```
 
+Living entity (not a player) and block:
+
+```java
+Condition burningZombie = Conditions.allOf(
+    Conditions.entityType(Key.key("minecraft:zombie")),
+    Conditions.onFire(true));
+
+Condition northChest = Conditions.allOf(
+    Conditions.blockId(Key.key("minecraft:chest")),
+    Conditions.blockProperty("facing", "north"));
+
+// Player-only — a generic living snapshot fails closed
+Condition survival = Conditions.gameMode("survival");
+```
+
+```json
+{
+  "condition": "minecraft:entity_properties",
+  "entity": "this",
+  "predicate": {
+    "type": "minecraft:zombie",
+    "flags": { "is_on_fire": true }
+  }
+}
+```
+
+```json
+{
+  "condition": "minecraft:block_state_property",
+  "block": "minecraft:chest",
+  "properties": { "facing": "north" }
+}
+```
+
 On Paper, build the snapshot from a live player:
 
 ```java
@@ -35,6 +69,10 @@ import java.util.Set;
 
 var ctx = PaperConditionContexts.from(player, Set.of("modularjobs:miner"));
 boolean ok = netherSneak.test(ctx);
+
+// Non-player living entity or a block:
+PaperConditionContexts.fromLiving(zombie);
+PaperConditionContexts.fromBlock(block);
 ```
 
 ## JSON (vanilla loot-condition shape)

@@ -7,16 +7,28 @@ import net.kyori.adventure.key.Key;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Snapshot of player/world state used to evaluate {@link Condition}s. Paper
- * fills this from a live player; tests construct it directly.
+ * Immutable evaluation snapshot. May describe a player, a non-player living
+ * entity, a block, or a combination (for example a player standing on a block).
+ * Conditions fail closed when the fields they need are absent.
  *
- * @param present {@code false} when the player is offline or unknown; most
- *     conditions fail closed
+ * <p>{@code present} means a <em>player</em> is in the snapshot. Living-entity
+ * conditions use {@code livingPresent}; block conditions use {@code blockId}.
+ *
+ * @param present {@code true} when a player is in the snapshot
  */
 public record ConditionContext(
     boolean present,
+    boolean livingPresent,
     boolean sneaking,
     boolean sprinting,
+    boolean onFire,
+    boolean onGround,
+    boolean swimming,
+    boolean baby,
+    boolean flying,
+    boolean gliding,
+    @Nullable Key entityType,
+    @Nullable String gameMode,
     @Nullable Key biome,
     @Nullable String worldName,
     @Nullable Key worldKey,
@@ -26,16 +38,19 @@ public record ConditionContext(
     @Nullable Double hunger,
     @Nullable Double experience,
     Map<Key, PotionEffectSnapshot> effects,
-    Set<String> jobKeys
+    Set<String> jobKeys,
+    @Nullable Key blockId,
+    Map<String, String> blockProperties
 ) {
 
   public ConditionContext {
     effects = Map.copyOf(effects == null ? Map.of() : effects);
     jobKeys = Set.copyOf(jobKeys == null ? Set.of() : jobKeys);
+    blockProperties = Map.copyOf(blockProperties == null ? Map.of() : blockProperties);
   }
 
   public static ConditionContext absent() {
-    return builder().present(false).build();
+    return builder().present(false).livingPresent(false).build();
   }
 
   public static Builder builder() {
@@ -45,8 +60,17 @@ public record ConditionContext(
   public static final class Builder {
 
     private boolean present = true;
+    private boolean livingPresent = true;
     private boolean sneaking;
     private boolean sprinting;
+    private boolean onFire;
+    private boolean onGround;
+    private boolean swimming;
+    private boolean baby;
+    private boolean flying;
+    private boolean gliding;
+    private @Nullable Key entityType;
+    private @Nullable String gameMode;
     private @Nullable Key biome;
     private @Nullable String worldName;
     private @Nullable Key worldKey;
@@ -57,11 +81,30 @@ public record ConditionContext(
     private @Nullable Double experience;
     private Map<Key, PotionEffectSnapshot> effects = Map.of();
     private Set<String> jobKeys = Set.of();
+    private @Nullable Key blockId;
+    private Map<String, String> blockProperties = Map.of();
+    private boolean livingPresentOverridden;
 
     private Builder() {}
 
+    /**
+     * Marks a player as present. Also marks a living entity present unless
+     * {@link #livingPresent(boolean)} was set explicitly.
+     */
     public Builder present(boolean present) {
       this.present = present;
+      if (!livingPresentOverridden && present) {
+        this.livingPresent = true;
+      }
+      if (!present && !livingPresentOverridden) {
+        this.livingPresent = false;
+      }
+      return this;
+    }
+
+    public Builder livingPresent(boolean livingPresent) {
+      this.livingPresent = livingPresent;
+      this.livingPresentOverridden = true;
       return this;
     }
 
@@ -72,6 +115,46 @@ public record ConditionContext(
 
     public Builder sprinting(boolean sprinting) {
       this.sprinting = sprinting;
+      return this;
+    }
+
+    public Builder onFire(boolean onFire) {
+      this.onFire = onFire;
+      return this;
+    }
+
+    public Builder onGround(boolean onGround) {
+      this.onGround = onGround;
+      return this;
+    }
+
+    public Builder swimming(boolean swimming) {
+      this.swimming = swimming;
+      return this;
+    }
+
+    public Builder baby(boolean baby) {
+      this.baby = baby;
+      return this;
+    }
+
+    public Builder flying(boolean flying) {
+      this.flying = flying;
+      return this;
+    }
+
+    public Builder gliding(boolean gliding) {
+      this.gliding = gliding;
+      return this;
+    }
+
+    public Builder entityType(@Nullable Key entityType) {
+      this.entityType = entityType;
+      return this;
+    }
+
+    public Builder gameMode(@Nullable String gameMode) {
+      this.gameMode = gameMode;
       return this;
     }
 
@@ -125,11 +208,30 @@ public record ConditionContext(
       return this;
     }
 
+    public Builder blockId(@Nullable Key blockId) {
+      this.blockId = blockId;
+      return this;
+    }
+
+    public Builder blockProperties(Map<String, String> blockProperties) {
+      this.blockProperties = Objects.requireNonNull(blockProperties);
+      return this;
+    }
+
     public ConditionContext build() {
       return new ConditionContext(
           present,
+          livingPresent,
           sneaking,
           sprinting,
+          onFire,
+          onGround,
+          swimming,
+          baby,
+          flying,
+          gliding,
+          entityType,
+          gameMode,
           biome,
           worldName,
           worldKey,
@@ -139,7 +241,9 @@ public record ConditionContext(
           hunger,
           experience,
           effects,
-          jobKeys);
+          jobKeys,
+          blockId,
+          blockProperties);
     }
   }
 }

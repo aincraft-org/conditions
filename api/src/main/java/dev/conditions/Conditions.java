@@ -25,6 +25,46 @@ public final class Conditions {
     return new SprintingCondition(expected);
   }
 
+  public static Condition entityType(Key entityType) {
+    return new EntityTypeCondition(Objects.requireNonNull(entityType));
+  }
+
+  public static Condition onFire(boolean expected) {
+    return new OnFireCondition(expected);
+  }
+
+  public static Condition onGround(boolean expected) {
+    return new OnGroundCondition(expected);
+  }
+
+  public static Condition swimming(boolean expected) {
+    return new SwimmingCondition(expected);
+  }
+
+  public static Condition baby(boolean expected) {
+    return new BabyCondition(expected);
+  }
+
+  public static Condition gliding(boolean expected) {
+    return new GlidingCondition(expected);
+  }
+
+  public static Condition flying(boolean expected) {
+    return new FlyingCondition(expected);
+  }
+
+  public static Condition gameMode(String gameMode) {
+    return new GameModeCondition(gameMode);
+  }
+
+  public static Condition blockId(Key blockId) {
+    return new BlockIdCondition(Objects.requireNonNull(blockId));
+  }
+
+  public static Condition blockProperty(String name, String value) {
+    return new BlockPropertyCondition(name, value);
+  }
+
   public static Condition biome(Key biomeKey) {
     return new BiomeCondition(Objects.requireNonNull(biomeKey));
   }
