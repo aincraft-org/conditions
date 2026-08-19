@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.UUID;
 import net.kyori.adventure.key.Key;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +22,11 @@ class DataBagTest {
   private static final Key AMOUNT = Key.key("modularjobs", "amount");
   private static final Key NAME = Key.key("modularjobs", "name");
   private static final Key BLOB = Key.key("modularjobs", "blob");
+  private static final Key SLOT = Key.key("modularjobs", "slot");
+  private static final Key META = Key.key("modularjobs", "meta");
+  private static final Key SLOTS = Key.key("modularjobs", "slots");
+  private static final Key TIMES = Key.key("modularjobs", "times");
+  private static final Key OWNER = Key.key("modularjobs", "owner");
   private static final Key MISSING = Key.key("modularjobs", "missing");
 
   @Test
@@ -32,7 +38,12 @@ class DataBagTest {
         .setFloat(RATIO, 1.5f)
         .setDouble(AMOUNT, 3.25d)
         .setString(NAME, "mining_helmet")
-        .setBytes(BLOB, new byte[] {1, 2, 3, 4});
+        .setBytes(BLOB, new byte[] {1, 2, 3, 4})
+        .setByte(SLOT, (byte) 7)
+        .setShort(META, (short) 300)
+        .setInts(SLOTS, new int[] {0, 1, 39})
+        .setLongs(TIMES, new long[] {10L, 20L})
+        .setUuid(OWNER, UUID.fromString("11111111-2222-3333-4444-555555555555"));
 
     byte[] encoded = bag.toBytes();
     assertTrue(encoded.length > 0);
@@ -45,6 +56,13 @@ class DataBagTest {
     assertEquals(OptionalDouble.of(3.25d), restored.getDouble(AMOUNT));
     assertEquals(Optional.of("mining_helmet"), restored.getString(NAME));
     assertArrayEquals(new byte[] {1, 2, 3, 4}, restored.getBytes(BLOB).orElseThrow());
+    assertEquals(Optional.of((byte) 7), restored.getByte(SLOT));
+    assertEquals(Optional.of((short) 300), restored.getShort(META));
+    assertArrayEquals(new int[] {0, 1, 39}, restored.getInts(SLOTS).orElseThrow());
+    assertArrayEquals(new long[] {10L, 20L}, restored.getLongs(TIMES).orElseThrow());
+    assertEquals(
+        Optional.of(UUID.fromString("11111111-2222-3333-4444-555555555555")),
+        restored.getUuid(OWNER));
   }
 
   @Test
@@ -59,6 +77,11 @@ class DataBagTest {
     assertTrue(restored.getDouble(MISSING).isEmpty());
     assertTrue(restored.getString(MISSING).isEmpty());
     assertTrue(restored.getBytes(MISSING).isEmpty());
+    assertTrue(restored.getByte(MISSING).isEmpty());
+    assertTrue(restored.getShort(MISSING).isEmpty());
+    assertTrue(restored.getInts(MISSING).isEmpty());
+    assertTrue(restored.getLongs(MISSING).isEmpty());
+    assertTrue(restored.getUuid(MISSING).isEmpty());
   }
 
   @Test

@@ -9,12 +9,14 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.UUID;
 import net.kyori.adventure.key.Key;
 
 /**
  * Light namespaced primitive bag, PDC-shaped but Paper-free. The whole bag
- * encodes to a Kryo {@code byte[]} (boolean, int, long, float, double, string,
- * byte[]). Missing or wrong-typed keys are empty, never thrown.
+ * encodes to a Kryo {@code byte[]} (boolean, byte, short, int, long, float,
+ * double, string, UUID, byte[], int[], long[]). Missing or wrong-typed keys
+ * are empty, never thrown.
  */
 public final class DataBag {
 
@@ -25,6 +27,11 @@ public final class DataBag {
   private static final byte DOUBLE = 5;
   private static final byte STRING = 6;
   private static final byte BYTES = 7;
+  private static final byte BYTE = 8;
+  private static final byte SHORT = 9;
+  private static final byte INTS = 10;
+  private static final byte LONGS = 11;
+  private static final byte UUID_TAG = 12;
 
   private final Map<String, Entry> values = new LinkedHashMap<>();
 
@@ -73,6 +80,31 @@ public final class DataBag {
     return this;
   }
 
+  public DataBag setByte(Key key, byte value) {
+    values.put(id(key), new Entry(BYTE, value));
+    return this;
+  }
+
+  public DataBag setShort(Key key, short value) {
+    values.put(id(key), new Entry(SHORT, value));
+    return this;
+  }
+
+  public DataBag setInts(Key key, int[] value) {
+    values.put(id(key), new Entry(INTS, value.clone()));
+    return this;
+  }
+
+  public DataBag setLongs(Key key, long[] value) {
+    values.put(id(key), new Entry(LONGS, value.clone()));
+    return this;
+  }
+
+  public DataBag setUuid(Key key, UUID value) {
+    values.put(id(key), new Entry(UUID_TAG, Objects.requireNonNull(value)));
+    return this;
+  }
+
   public Optional<Boolean> getBoolean(Key key) {
     return typed(key, BOOL, Boolean.class);
   }
@@ -101,6 +133,26 @@ public final class DataBag {
     return typed(key, BYTES, byte[].class).map(byte[]::clone);
   }
 
+  public Optional<Byte> getByte(Key key) {
+    return typed(key, BYTE, Byte.class);
+  }
+
+  public Optional<Short> getShort(Key key) {
+    return typed(key, SHORT, Short.class);
+  }
+
+  public Optional<int[]> getInts(Key key) {
+    return typed(key, INTS, int[].class).map(int[]::clone);
+  }
+
+  public Optional<long[]> getLongs(Key key) {
+    return typed(key, LONGS, long[].class).map(long[]::clone);
+  }
+
+  public Optional<UUID> getUuid(Key key) {
+    return typed(key, UUID_TAG, UUID.class);
+  }
+
   /**
    * Kryo-framed byte array of this bag. This is the payload written to a Paper
    * PDC as {@code PersistentDataType.BYTE_ARRAY}.
@@ -123,6 +175,27 @@ public final class DataBag {
           byte[] blob = (byte[]) entry.value;
           output.writeVarInt(blob.length, true);
           output.writeBytes(blob);
+        }
+        case BYTE -> output.writeByte((Byte) entry.value);
+        case SHORT -> output.writeShort((Short) entry.value);
+        case INTS -> {
+          int[] ints = (int[]) entry.value;
+          output.writeVarInt(ints.length, true);
+          for (int n : ints) {
+            output.writeInt(n, false);
+          }
+        }
+        case LONGS -> {
+          long[] longs = (long[]) entry.value;
+          output.writeVarInt(longs.length, true);
+          for (long n : longs) {
+            output.writeLong(n, false);
+          }
+        }
+        case UUID_TAG -> {
+          UUID uuid = (UUID) entry.value;
+          output.writeLong(uuid.getMostSignificantBits(), false);
+          output.writeLong(uuid.getLeastSignificantBits(), false);
         }
         default -> throw new IllegalStateException("unknown tag " + entry.tag);
       }
@@ -151,6 +224,25 @@ public final class DataBag {
           int length = input.readVarInt(true);
           yield input.readBytes(length);
         }
+        case BYTE -> input.readByte();
+        case SHORT -> input.readShort();
+        case INTS -> {
+          int length = input.readVarInt(true);
+          int[] ints = new int[length];
+          for (int j = 0; j < length; j++) {
+            ints[j] = input.readInt(false);
+          }
+          yield ints;
+        }
+        case LONGS -> {
+          int length = input.readVarInt(true);
+          long[] longs = new long[length];
+          for (int j = 0; j < length; j++) {
+            longs[j] = input.readLong(false);
+          }
+          yield longs;
+        }
+        case UUID_TAG -> new UUID(input.readLong(false), input.readLong(false));
         default -> throw new IllegalArgumentException("unknown tag " + tag);
       };
       bag.values.put(key, new Entry(tag, value));

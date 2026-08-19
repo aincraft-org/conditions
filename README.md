@@ -170,6 +170,9 @@ Namespaced keys, PDC-like primitives, no Bukkit. The whole bag is a Kryo byte
 array that Paper writes as `PersistentDataType.BYTE_ARRAY`. Condition graphs
 stay vanilla JSON bytes in a `byte[]` slot — they are not Kryo condition classes.
 
+Scalars: boolean, byte, short, int, long, float, double, string, UUID.  
+Arrays: byte[], int[], long[].
+
 ```java
 import dev.conditions.store.DataBag;
 import net.kyori.adventure.key.Key;
