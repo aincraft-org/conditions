@@ -1,36 +1,134 @@
 # conditions
 
-Paper-free player predicates with a vanilla loot-condition JSON reader/writer.
-
-Coordinates (`org.aincraft`):
+Player predicates for Paper plugins. Java package and Maven group: **`dev.conditions`**.
 
 | Artifact | Role |
 |----------|------|
-| `conditions-api` | Immutable `Condition` graph + `ConditionContext` |
-| `conditions-gson` | `ConditionSerializer` — UTF-8 vanilla-shaped JSON bytes |
-| `conditions-paper` | `PaperConditionContexts.from(Player, …)` snapshot adapter |
+| `dev.conditions:api` | Immutable `Condition` graph + `ConditionContext` |
+| `dev.conditions:gson` | Vanilla loot-condition JSON `read` / `write` (UTF-8 bytes) |
+| `dev.conditions:paper` | `PaperConditionContexts.from(Player, jobKeys)` |
+
+## Java
+
+```java
+import dev.conditions.Condition;
+import dev.conditions.ConditionContext;
+import dev.conditions.Conditions;
+
+Condition netherSneak = Conditions.allOf(
+    Conditions.world("world_nether"),
+    Conditions.sneaking(true));
+
+boolean matches = netherSneak.test(
+    ConditionContext.builder()
+        .present(true)
+        .worldName("world_nether")
+        .sneaking(true)
+        .build());
+```
+
+On Paper, build the snapshot from a live player:
+
+```java
+import dev.conditions.paper.PaperConditionContexts;
+import java.util.Set;
+
+var ctx = PaperConditionContexts.from(player, Set.of("modularjobs:miner"));
+boolean ok = netherSneak.test(ctx);
+```
+
+## JSON (vanilla loot-condition shape)
+
+Reader/writer:
+
+```java
+import dev.conditions.gson.GsonConditionSerializer;
+
+var json = GsonConditionSerializer.gson();
+byte[] bytes = json.write(netherSneak);
+Condition back = json.read(bytes);
+```
+
+Sneaking:
+
+```json
+{
+  "condition": "minecraft:entity_properties",
+  "entity": "this",
+  "predicate": { "flags": { "is_sneaking": true } }
+}
+```
+
+Nether + sneaking:
+
+```json
+{
+  "condition": "minecraft:all_of",
+  "terms": [
+    { "condition": "modularjobs:world", "world": "world_nether" },
+    {
+      "condition": "minecraft:entity_properties",
+      "entity": "this",
+      "predicate": { "flags": { "is_sneaking": true } }
+    }
+  ]
+}
+```
+
+Weather:
+
+```json
+{ "condition": "minecraft:weather_check", "raining": true }
+```
+
+Low health:
+
+```json
+{
+  "condition": "modularjobs:player_resource",
+  "resource": "health",
+  "operator": "<=",
+  "value": 6.0
+}
+```
+
+Job:
+
+```json
+{ "condition": "modularjobs:job", "jobs": ["miner"] }
+```
+
+Inverted:
+
+```json
+{
+  "condition": "minecraft:inverted",
+  "term": {
+    "condition": "minecraft:entity_properties",
+    "entity": "this",
+    "predicate": { "flags": { "is_sprinting": true } }
+  }
+}
+```
+
+Boosts persist a rule as **priority + those JSON bytes + boost**:
+
+```json
+{
+  "priority": 100,
+  "conditions": "<base64 of the vanilla JSON above>",
+  "boost": { "type": "multiplicative", "amount": 3.0 }
+}
+```
 
 ## Versioning
 
-[CalVer](https://calver.org/) `YY.M.D.REVISION` (same contract as ModularJobs):
-
-```text
-26.8.19.1
-```
-
-- `YY` two-digit year, `M`/`D` unpadded month/day
-- `REVISION` starts at `1` each calendar date
-- Git tags: `v26.8.19.1`
-- Local builds: `0.0.0-SNAPSHOT`
-- Releases: `./gradlew publish -PreleaseVersion=YY.M.D.REVISION`
-
-CI publishes to GitHub Packages using UTC `YY.M.D.<run-number>`.
+CalVer `YY.M.D.REVISION` (example `26.8.19.1`). Local: `0.0.0-SNAPSHOT`.
+Release: `./gradlew publishAllPublicationsToLocalBuildRepoRepository -PreleaseVersion=26.8.19.1`.
 
 ## Build
 
 ```bash
 ./gradlew test
-./gradlew publish          # sibling maven-repo at build/maven-repo
+./gradlew publishAllPublicationsToLocalBuildRepoRepository
 ```
-
-Java 21. `api` and `gson` have no Bukkit types.

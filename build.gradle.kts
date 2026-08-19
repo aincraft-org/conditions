@@ -27,7 +27,7 @@ gradle.taskGraph.whenReady {
 }
 
 allprojects {
-    group = "org.aincraft"
+    group = "dev.conditions"
     version = conditionsVersion
 }
 
@@ -55,15 +55,15 @@ subprojects {
         publications {
             create<MavenPublication>("maven") {
                 from(components["java"])
-                artifactId = "conditions-${project.name}"
+                artifactId = project.name
                 pom {
-                    name.set("Conditions ${project.name.replaceFirstChar(Char::uppercase)}")
+                    name.set("conditions ${project.name}")
                     description.set(
                         when (project.name) {
                             "api" -> "Paper-free player condition graph for Minecraft-shaped predicates."
-                            "gson" -> "Vanilla loot-condition JSON reader/writer for org.aincraft conditions."
+                            "gson" -> "Vanilla loot-condition JSON reader/writer for dev.conditions."
                             "paper" -> "Paper adapter that builds ConditionContext from a live player."
-                            else -> "Aincraft conditions library."
+                            else -> "dev.conditions library."
                         },
                     )
                     url.set("https://github.com/aincraft-org/conditions")
