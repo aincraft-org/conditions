@@ -185,6 +185,37 @@ DataBag back = DataBag.fromBytes(pdcPayload);
 
 On an item: `PersistentBags.write(stack, namespacedKey, bag)`.
 
+## Extension SPI
+
+Vanilla / `modularjobs:*` kinds stay built-in. Anything ModularJobs should not
+own (party, region, …) registers a `ConditionHandler`. JSON fields become a
+`DataBag` (`condition:<field>`); evaluation extras live on
+`ConditionContext.extras()`.
+
+```java
+ConditionHandlers.register(new ConditionHandler() {
+  public Key id() { return Key.key("acme", "party_size"); }
+  public Condition read(DataBag arguments) {
+    int min = arguments.getInt(Key.key("condition", "min")).orElseThrow();
+    return ctx -> ctx.extras().getInt(Key.key("acme", "party_size")).orElse(0) >= min;
+  }
+  public Optional<DataBag> write(Condition condition) { /* … */ }
+});
+```
+
+```json
+{ "condition": "acme:party_size", "min": 3 }
+```
+
+Paper fills extras without the conditions library knowing the plugin:
+
+```java
+DataBag extras = DataBag.create().setInt(Key.key("acme", "party_size"), partySize);
+PaperConditionContexts.from(player, jobKeys, extras);
+```
+
+Unregistered ids still throw on read.
+
 ## Build
 
 ```bash

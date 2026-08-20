@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: mintychochip/databag
-          ref: 108727923e773e98e189d7029a1c7acbe198b442
+          ref: 373f7d0991e121afbcccf32015105010cafab2be
           path: databag
           fetch-depth: 1
       - name: Link databag local Maven repository

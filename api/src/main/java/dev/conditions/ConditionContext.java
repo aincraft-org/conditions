@@ -1,5 +1,6 @@
 package dev.conditions;
 
+import dev.databag.DataBag;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -40,13 +41,20 @@ public record ConditionContext(
     Map<Key, PotionEffectSnapshot> effects,
     Set<String> jobKeys,
     @Nullable Key blockId,
-    Map<String, String> blockProperties
+    Map<String, String> blockProperties,
+    DataBag extras
 ) {
 
   public ConditionContext {
     effects = Map.copyOf(effects == null ? Map.of() : effects);
     jobKeys = Set.copyOf(jobKeys == null ? Set.of() : jobKeys);
     blockProperties = Map.copyOf(blockProperties == null ? Map.of() : blockProperties);
+    extras = extras == null ? DataBag.create() : DataBag.fromBytes(extras.toBytes());
+  }
+
+  /** Extension snapshot data for registered {@link ConditionHandler}s. */
+  public DataBag extras() {
+    return DataBag.fromBytes(extras.toBytes());
   }
 
   public static ConditionContext absent() {
@@ -83,6 +91,7 @@ public record ConditionContext(
     private Set<String> jobKeys = Set.of();
     private @Nullable Key blockId;
     private Map<String, String> blockProperties = Map.of();
+    private DataBag extras = DataBag.create();
     private boolean livingPresentOverridden;
 
     private Builder() {}
@@ -218,6 +227,11 @@ public record ConditionContext(
       return this;
     }
 
+    public Builder extras(DataBag extras) {
+      this.extras = extras == null ? DataBag.create() : extras;
+      return this;
+    }
+
     public ConditionContext build() {
       return new ConditionContext(
           present,
@@ -243,7 +257,8 @@ public record ConditionContext(
           effects,
           jobKeys,
           blockId,
-          blockProperties);
+          blockProperties,
+          extras);
     }
   }
 }

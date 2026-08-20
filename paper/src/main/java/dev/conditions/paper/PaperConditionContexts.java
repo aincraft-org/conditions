@@ -3,6 +3,7 @@ package dev.conditions.paper;
 import dev.conditions.ConditionContext;
 import dev.conditions.PotionEffectSnapshot;
 import dev.conditions.WeatherState;
+import dev.databag.DataBag;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -34,6 +35,15 @@ public final class PaperConditionContexts {
    */
   public static ConditionContext from(
       @Nullable Player player, @Nullable Set<String> jobKeys) {
+    return from(player, jobKeys, DataBag.create());
+  }
+
+  /**
+   * Snapshot of {@code player} plus job keys and extension {@link DataBag}
+   * extras for registered {@link dev.conditions.ConditionHandler}s.
+   */
+  public static ConditionContext from(
+      @Nullable Player player, @Nullable Set<String> jobKeys, @Nullable DataBag extras) {
     if (player == null || !player.isOnline()) {
       return ConditionContext.absent();
     }
@@ -45,6 +55,7 @@ public final class PaperConditionContexts {
         .hunger((double) player.getFoodLevel())
         .experience((double) player.getExp())
         .jobKeys(jobKeys == null ? Set.of() : jobKeys)
+        .extras(extras == null ? DataBag.create() : extras)
         .build();
   }
 

@@ -16,8 +16,11 @@ import dev.conditions.BiomeCondition;
 import dev.conditions.BlockIdCondition;
 import dev.conditions.BlockPropertyCondition;
 import dev.conditions.Condition;
+import dev.conditions.ConditionHandler;
+import dev.conditions.ConditionHandlers;
 import dev.conditions.ConditionSerializer;
 import dev.conditions.Conditions;
+import dev.databag.DataBag;
 import dev.conditions.EntityTypeCondition;
 import dev.conditions.FluidCondition;
 import dev.conditions.FlyingCondition;
@@ -98,9 +101,19 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case PotionAmplifierCondition potion -> entityEffect(potion.effectKey().asString(), potion, null);
       case PotionDurationCondition potion -> entityEffect(potion.effectKey().asString(), null, potion);
       case JobCondition job -> jobJson(job);
-      default -> throw new IllegalArgumentException(
-          "Cannot serialize condition type: " + condition.getClass().getName());
+      default -> writeRegistered(condition);
     };
+  }
+
+  private JsonObject writeRegistered(Condition condition) {
+    ConditionHandler handler = ConditionHandlers.findWriter(condition).orElseThrow(
+        () -> new IllegalArgumentException(
+            "Cannot serialize condition type: " + condition.getClass().getName()));
+    DataBag arguments = handler.write(condition).orElseThrow();
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", handler.id().asString());
+    ArgumentBags.writeFields(root, arguments);
+    return root;
   }
 
   private Condition readObject(JsonObject json) {
@@ -123,8 +136,14 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case "biome" -> Conditions.biome(Key.key(requiredString(json, "value")));
       case "liquid" -> Conditions.fluid(Key.key(liquidKey(json)));
       case "potion_effect" -> readLegacyPotion(json);
-      default -> throw new IllegalArgumentException("Unknown condition type: " + id);
+      default -> readRegistered(id, json);
     };
+  }
+
+  private Condition readRegistered(String id, JsonObject json) {
+    ConditionHandler handler = ConditionHandlers.get(id).orElseThrow(
+        () -> new IllegalArgumentException("Unknown condition type: " + id));
+    return handler.read(ArgumentBags.fromJson(json));
   }
 
   private Condition readAllOf(JsonObject json) {
